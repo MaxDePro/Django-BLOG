@@ -9,27 +9,65 @@ from django.views.generic import View
 from .utils import *
 from .forms import *
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
+
+from django.db.models import Q
+
 
 def posts_list(request):
-    posts = Post.objects.all()
-    return render(request, 'blog/index.html', context={'posts': posts})
+
+    search_query = request.GET.get('search', '')
+
+    if search_query:
+        posts = Post.objects.filter(Q(title__icontains=search_query) | Q(body__icontains=search_query))
+    else:
+        posts = Post.objects.all()
+
+    paginator = Paginator(posts, 5)
+
+    page_number = request.GET.get('page', 1)
+    page = paginator.get_page(page_number)
+
+    is_paginated = page.has_other_pages()
+
+    if page.has_next():
+        next_page = page.next_page_number()
+    else:
+        next_page = ''
+
+    if page.has_previous():
+        prev_page = page.previous_page_number()
+    else:
+        prev_page = ''
+
+    context = {
+        'page': page,
+        'is_paginated': is_paginated,
+        'next_page': next_page,
+        'prev_page': prev_page
+    }
+    return render(request, 'blog/index.html', context=context)
 
 
-class PostCreate(ObjectCreateMixin, View):
+class PostCreate(LoginRequiredMixin, ObjectCreateMixin, View):
     form = PostForm
     template = 'blog/post_create.html'
+    raise_exception = True
 
 
-class PostUpdate(ObjectUpdateMixin, View):
+class PostUpdate(LoginRequiredMixin, ObjectUpdateMixin, View):
     model = Post
     template = 'blog/post_update.html'
     form = PostForm
+    raise_exception = True
 
 
-class PostDelete(ObjectDeleteMixin, View):
+class PostDelete(LoginRequiredMixin, ObjectDeleteMixin, View):
     model = Post
     template = 'blog/post_delete.html'
     redirect_url = 'posts_list_url'
+    raise_exception = True
 
 
 class PostDetail(ObjectDetailMixin, View):
@@ -42,43 +80,24 @@ def tags_list(request):
     return render(request, 'blog/tags_list.html', context={'tags': tags})
 
 
-class TagCreate(ObjectCreateMixin, View):
+class TagCreate(LoginRequiredMixin, ObjectCreateMixin, View):
     form = TagForm
     template = 'blog/tag_create.html'
+    raise_exception = True
 
 
-class TagUpdate(ObjectUpdateMixin, View):
+class TagUpdate(LoginRequiredMixin, ObjectUpdateMixin, View):
     model = Tag
     template = 'blog/tag_update.html'
     form = TagForm
-    # def get(self, request, slug):
-    #     tag = Tag.objects.get(slug__iexact=slug)
-    #     bound_form = TagForm(instance=tag)
-    #     return render(request, 'blog/tag_update.html', context={'form': bound_form, 'tag': tag})
-    #
-    # def post(self, request, slug):
-    #     tag = Tag.objects.get(slug__iexact=slug)
-    #     bound_form = TagForm(request.POST, instance=tag)
-    #
-    #     if bound_form.is_valid():
-    #         new_tag = bound_form.save()
-    #         return redirect(new_tag)
-    #
-    #     return render(request, 'blog/tag_update.html', context={'form': bound_form, 'tag': tag})
+    raise_exception = True
 
 
-class TagDelete(ObjectDeleteMixin, View):
+class TagDelete(LoginRequiredMixin, ObjectDeleteMixin, View):
     model = Tag
     template = 'blog/tag_delete.html'
     redirect_url = 'tags_list_url'
-    # def get(self, request, slug):
-    #     tag = Tag.objects.get(slug__iexact=slug)
-    #     return render(request, 'blog/tag_delete.html', context={'tag': tag})
-    #
-    # def post(self, request, slug):
-    #     tag = Tag.objects.get(slug__iexact=slug)
-    #     tag.delete()
-    #     return redirect(reverse('tags_list_url'))
+    raise_exception = True
 
 
 class TagDetail(ObjectDetailMixin, View):
